@@ -6,8 +6,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MaskerTest {
+    // 機種に依存しないことを確かめるため、Ciscoのログも「指定なし」で伏せる
     private fun mask(s: String, cats: Set<MaskCategory> = MaskCategory.entries.toSet()) =
-        Masker(CiscoIosProfile, cats).mask(s)
+        Masker(GenericProfile, cats).mask(s)
 
     @Test
     fun ipv4_sameValueSameToken_masksKept() {
@@ -168,5 +169,101 @@ class MaskerTest {
         )
         assertFalse(r.text.contains("3082022B"))
         assertTrue(r.text.contains("<CERT_DATA>"))
+    }
+
+    @Test
+    fun sameResultWithOrWithoutDeviceProfile() {
+        val log = """
+            hostname CORE-SW01
+            enable secret 9 ${'$'}9${'$'}abcdEFGH${'$'}xyz
+            username admin privilege 15 secret 5 ${'$'}1${'$'}mERr${'$'}hx5rVt7rPNoS4wqbXKX7m0
+            snmp-server community MyComm RO
+            interface GigabitEthernet0/1
+             ip address 10.1.2.3 255.255.255.0
+             standby 1 authentication Hsrp1
+            Processor board ID FOC1234X5YZ
+            CORE-SW01#show version
+        """.trimIndent()
+        val all = MaskCategory.entries.toSet()
+        val generic = Masker(GenericProfile, all).mask(log)
+        val cisco = Masker(CiscoIosProfile, all).mask(log)
+        assertEquals(generic.text, cisco.text)
+        assertEquals(generic.mapping, cisco.mapping)
+        assertFalse(generic.text, generic.text.contains("Hsrp1"))
+    }
+
+    @Test
+    fun otherVendorsWithoutProfile() {
+        val log = """
+            [edit]
+            admin@SRX1# show system
+            host-name SRX1;
+            root-authentication {
+                encrypted-password "${'$'}6${'$'}abc${'$'}DEFghi"; ## SECRET-DATA
+            }
+            secret "${'$'}9${'$'}xYz123"; ## SECRET-DATA
+            <HUAWEI-CORE>display current-configuration
+            sysname HUAWEI-CORE
+             snmp-agent community read cipher %^%#AbCdEf%^%#
+             local-user netops password irreversible-cipher ${'$'}1a${'$'}Qw${'$'}
+            config system admin
+                set password ENC SH2Abcdef0123
+            login user yamaha-op Yp4ss
+            pre-shared-key text Ipsec!Key
+            ESN: 2102351931P0ABCD1234
+            ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAAgQC7 user@pc
+        """.trimIndent()
+        val t = mask(log).text
+        listOf(
+            "SRX1", "abc", "xYz123", "HUAWEI-CORE", "AbCdEf", "netops", "Qw", "SH2Abcdef0123",
+            "yamaha-op", "Yp4ss", "Ipsec!Key", "2102351931P0ABCD1234", "AAAAB3NzaC1yc2E",
+        ).forEach { assertFalse("$it が残っている:\n$t", t.contains(it)) }
+        assertTrue(t, t.contains("[edit]"))
+    }
+
+    @Test
+    fun serverLogsAndConfigFiles() {
+        val log = """
+            Oct 31 10:00:01 web01 sshd[123]: Failed password for invalid user oracle from 10.0.0.5 port 2222 ssh2
+            Oct 31 10:00:02 web01 sshd[124]: Accepted password for deploy from 10.0.0.6 port 2223 ssh2
+            {"db_user": "app", "password": "p@ss w0rd", "api_key": "sk-123456"}
+            <password>XmlPass1</password>
+            -----BEGIN RSA PRIVATE KEY-----
+            MIIEowIBAAKCAQEA1234
+            abcdEFGH5678
+            -----END RSA PRIVATE KEY-----
+        """.trimIndent()
+        val r = mask(log)
+        val t = r.text
+        listOf("oracle", "deploy", "p@ss w0rd", "sk-123456", "XmlPass1", "MIIEowIBAAKCAQEA1234", "abcdEFGH5678")
+            .forEach { assertFalse("$it が残っている:\n$t", t.contains(it)) }
+        assertTrue(t, t.contains("<CERT_DATA>"))
+        assertTrue(t, t.contains("Failed password for invalid user"))
+        assertTrue(t, t.contains("Accepted password for"))
+    }
+
+    @Test
+    fun wordsAfterKeywordsThatAreNotSecrets() {
+        val log = """
+            service password-encryption
+            key chain KC1
+             key 1
+              key-string 7 070C285F4D06
+            %SYS-5-PRIV_AUTH_PASS: Password changed for user admin
+            User      Interface   Idle
+            Password:
+            next line stays
+        """.trimIndent()
+        val r = mask(log)
+        val t = r.text
+        assertTrue(t, t.contains("service password-encryption"))
+        assertTrue(t, t.contains("key chain KC1"))
+        assertTrue(t, t.contains(" key 1"))
+        assertTrue(t, t.contains("Password changed for user"))
+        assertTrue(t, t.contains("User      Interface   Idle"))
+        assertTrue(t, t.contains("next line stays"))
+        assertFalse(t, t.contains("070C285F4D06"))
+        assertFalse(t, t.contains("admin"))
+        assertEquals(1, r.secretCount)
     }
 }

@@ -20,7 +20,7 @@
 | **保護モード** | IP・ホスト名・パスワードなどを伏せ字にしてから送り、回答は元の値に戻して表示 |
 
 - 最初は汎用モード。最後に選んだモードは次回も引き継ぐ
-- 社外に出せないログは、保護モード＋機種指定（Cisco など）で使うこと
+- 社外に出せないログは保護モードで使うこと。伏せ字は機種を選ばなくても同じように効く（下の「伏せ字の対象」参照）
 
 ## 送り先AI
 | 送り先 | パッケージ名 |
@@ -38,8 +38,11 @@
 ## 機種
 | 機種 | 内容 |
 |---|---|
-| **指定なし（自動判定）**（既定） | AIがログから機種を推定する。保護モードでは、IP・MACに加えて `password` / `secret` / `hostname` / `user@host` / `Serial Number` など、どの機種にもありがちな書式を伏せ字にする |
-| **Cisco IOS / IOS-XE** | Cisco向けの伏せ字ルールと、読み方のヒント（syslogの重大度、インターフェース名の略称など）をプロンプトに入れる |
+| **指定なし（自動判定）**（既定） | AIがログから機種を推定する |
+| **Cisco IOS / IOS-XE** | Cisco向けの読み方のヒント（syslogの重大度、インターフェース名の略称など）をプロンプトに入れる |
+
+機種の選択は **プロンプトのヒントだけ** に効く。伏せ字は機種に依存しない共通ルール（`core/MaskRules.kt`）で行うので、どの機種を選んでも同じ結果になる。
+共通ルールは「キーワード＋値」（`password xxx` / `secret: xxx` / `key=xxx` / `"token": "xxx"`）とプロンプト（`R1#` / `<HUAWEI>` / `user@host:~$`）で見つけるため、Cisco・Juniper・Huawei・FortiGate・YAMAHA・Linux・設定ファイル（JSON/XML）などをまとめて扱える。
 
 ## やりたいこと
 - 障害の原因を調べる
@@ -68,9 +71,10 @@ GitHub の [Releases → latest](../../releases/tag/latest) から `netlog-lens.
 署名の鍵を固定（`app/debug.keystore`）しているので、新しいビルドはアンインストールせずに上書きインストールできる。
 
 ## 機種を増やすには
-1. `app/src/main/java/com/morim/netloglens/core/` に `DeviceProfile` を実装したクラスを作る（`CiscoIosProfile.kt` を手本に、伏せ字の正規表現とプロンプトのヒントを書き換える）
+1. `app/src/main/java/com/morim/netloglens/core/` に `DeviceProfile` を実装したクラスを作る（`CiscoIosProfile.kt` を手本に、プロンプトのヒントを書く）
 2. `DeviceProfile.kt` の `DeviceProfiles.all` に1行追加する
-3. `app/src/test/java/com/morim/netloglens/core/` に、その機種の実ログを使ったテストを追加する
+3. `app/src/test/java/com/morim/netloglens/core/MaskerTest.kt` に、その機種の実ログを「指定なし」で伏せるテストを足し、漏れがないか確かめる
+4. 漏れがあれば、まず `MaskRules.kt`（共通ルール）を直す。その機種にしかない書き方だけは、プロファイルの `secretPatterns` などに追加ルールとして書ける
 
 ## 構成
 | フォルダ | 内容 |
@@ -82,15 +86,15 @@ GitHub の [Releases → latest](../../releases/tag/latest) から `netlog-lens.
 | `ui/` | Jetpack Compose の画面（ホーム・撮影・確認・解析結果・履歴） |
 
 ## 開発環境
-- Kotlin 2.1.0 + Jetpack Compose、Android Gradle Plugin 8.7.3
+- Kotlin 2.1.0 + Jetpack Compose、Android Gradle Plugin 8.13.2
 - minSdk 26（Android 8.0）／ targetSdk 35
 - CameraX 1.4.1、ML Kit Text Recognition 16.0.1
-- Gradle 8.11.1（Gradle Wrapper は同梱していない。手元でビルドするときは Android Studio で開くか、Gradle 8.11.1 を使う）
+- Gradle 9.5.0（Gradle Wrapper を同梱。手元では `./gradlew` で同じバージョンが使われる）
 
 ## ビルドとリリース
 `main` に push すると GitHub Actions（`.github/workflows/build.yml`）が次を行う：
-1. 単体テスト（`gradle testDebugUnitTest`）
-2. APKを作る（`gradle assembleDebug`）
+1. 単体テスト（`./gradlew testDebugUnitTest`）
+2. APKを作る（`./gradlew assembleDebug`）
 3. Release「latest」を作り直し、`netlog-lens.apk` を置く
 
 ## 今後の予定・未確認事項
