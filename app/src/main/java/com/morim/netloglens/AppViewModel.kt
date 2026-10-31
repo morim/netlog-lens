@@ -54,6 +54,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     )
         private set
 
+    /** 確認画面でタップして伏せた語（今回だけ） */
+    var manualWords by mutableStateOf(emptySet<String>())
+        private set
+
+    /** 確認画面で「元に戻す」を選んだ値（今回だけ） */
+    var keepValues by mutableStateOf(emptySet<String>())
+        private set
+
+    /** いつも伏せる語（社名・拠点コードなど）。スマホ内にだけ保存する */
+    var alwaysWords by mutableStateOf(prefs.getStringSet("always_mask_words", null)?.toSet() ?: emptySet())
+        private set
+
     /** 今表示中の解析（履歴から開いた場合も含む） */
     var current by mutableStateOf<HistoryEntry?>(null)
         private set
@@ -80,12 +92,34 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         prefs.edit().putBoolean("mask_${cat.name}", on).apply()
     }
 
+    fun maskWord(word: String, always: Boolean) {
+        if (always) {
+            alwaysWords = alwaysWords + word
+            prefs.edit().putStringSet("always_mask_words", alwaysWords).apply()
+        } else {
+            manualWords = manualWords + word
+        }
+        keepValues = keepValues - word
+    }
+
+    fun restoreValue(value: String) {
+        keepValues = keepValues + value
+        manualWords = manualWords - value
+    }
+
+    fun removeAlwaysWord(word: String) {
+        alwaysWords = alwaysWords - word
+        prefs.edit().putStringSet("always_mask_words", alwaysWords).apply()
+    }
+
     fun appendOcr(text: String) {
         ocrText = if (ocrText.isBlank()) text else ocrText.trimEnd() + "\n" + text
         shotCount++
     }
 
-    fun mask(): MaskResult = Masker(profile, if (isProtected) enabled else emptySet()).mask(ocrText)
+    fun mask(): MaskResult =
+        if (isProtected) Masker(profile, enabled, manualWords + alwaysWords, keepValues).mask(ocrText)
+        else Masker(profile, emptySet()).mask(ocrText)
 
     fun buildPrompt(result: MaskResult) = PromptBuilder.build(profile, purpose, memo, result.text, masked = isProtected)
 
@@ -131,6 +165,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         ocrText = ""
         shotCount = 0
         memo = ""
+        manualWords = emptySet()
+        keepValues = emptySet()
         current = null
         screen = Screen.HOME
     }
