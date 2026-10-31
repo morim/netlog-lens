@@ -37,7 +37,7 @@ import com.morim.netloglens.AppViewModel
 import com.morim.netloglens.Screen
 import com.morim.netloglens.core.MaskCategory
 import com.morim.netloglens.core.Mode
-import com.morim.netloglens.share.ClaudeShare
+import com.morim.netloglens.share.AiShare
 
 private val LABELS = mapOf(
     "IP" to "IPv4", "IPV6" to "IPv6", "MAC" to "MAC", "HOST" to "ホスト名",
@@ -61,19 +61,19 @@ fun ReviewScreen(vm: AppViewModel) {
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     OutlinedButton(onClick = {
-                        ClaudeShare.copy(context, prompt)
+                        AiShare.copy(context, prompt)
                         Toast.makeText(context, "コピーしました", Toast.LENGTH_SHORT).show()
                     }, modifier = Modifier.weight(1f)) { Text("コピー") }
                     Button(
                         onClick = {
                             vm.startAnalysis(prompt, result)
-                            val direct = ClaudeShare.send(context, prompt)
-                            if (!direct) Toast.makeText(context, "Claudeアプリが見つからないため共有先を選んでください", Toast.LENGTH_LONG).show()
+                            val direct = AiShare.send(context, prompt, vm.target)
+                            if (!direct) Toast.makeText(context, "${vm.target.label}アプリが見つからないため共有先を選んでください", Toast.LENGTH_LONG).show()
                             vm.screen = Screen.ANSWER
                         },
                         enabled = vm.ocrText.isNotBlank(),
                         modifier = Modifier.weight(2f),
-                    ) { Text("Claudeで解析") }
+                    ) { Text("${vm.target.label}で解析") }
                 }
             }
         },
@@ -103,7 +103,7 @@ fun ReviewScreen(vm: AppViewModel) {
             ) {
                 Column(Modifier.padding(12.dp)) {
                     Text(
-                        "汎用モード：伏せ字をしません。読み取った文字がそのままClaudeに送られます。" +
+                        "汎用モード：伏せ字をしません。読み取った文字がそのまま${vm.target.label}に送られます。" +
                             "IPアドレス・パスワードなどが写っていないか、送る前に確認してください。",
                         color = MaterialTheme.colorScheme.onErrorContainer,
                         style = MaterialTheme.typography.bodySmall,
@@ -137,8 +137,8 @@ fun ReviewScreen(vm: AppViewModel) {
             }
         } else {
             Text(
-                if (vm.isProtected) "これがそのままClaudeに渡ります。伏せ字が漏れていないか確認してください。"
-                else "これがそのままClaudeに渡ります。",
+                if (vm.isProtected) "これがそのまま${vm.target.label}に渡ります。伏せ字が漏れていないか確認してください。"
+                else "これがそのまま${vm.target.label}に渡ります。",
                 style = MaterialTheme.typography.bodySmall,
             )
             Card(Modifier.fillMaxWidth()) {

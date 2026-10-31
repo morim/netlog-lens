@@ -30,7 +30,7 @@ import androidx.compose.ui.unit.sp
 import com.morim.netloglens.AppViewModel
 import com.morim.netloglens.Screen
 import com.morim.netloglens.core.Masker
-import com.morim.netloglens.share.ClaudeShare
+import com.morim.netloglens.share.AiShare
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -59,7 +59,7 @@ fun AnswerScreen(vm: AppViewModel) {
 
         if (entry.answer.isBlank()) {
             Text(
-                "Claudeの回答が出たら、回答をコピーしてこの画面に戻り、下のボタンを押してください。" +
+                "${vm.target.label}の回答が出たら、回答をコピーしてこの画面に戻り、下のボタンを押してください。" +
                     "伏せ字（<IP_1> など）を元の値に戻して表示し、履歴に保存します。",
                 style = MaterialTheme.typography.bodyMedium,
             )
@@ -67,11 +67,11 @@ fun AnswerScreen(vm: AppViewModel) {
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = {
-                val text = ClaudeShare.paste(context)
+                val text = AiShare.paste(context)
                 if (text.isBlank()) Toast.makeText(context, "クリップボードが空です", Toast.LENGTH_SHORT).show()
                 else vm.saveAnswer(text)
             }) { Text(if (entry.answer.isBlank()) "回答を貼り付ける" else "回答を貼り直す") }
-            OutlinedButton(onClick = { ClaudeShare.send(context, entry.prompt) }) { Text("もう一度送る") }
+            OutlinedButton(onClick = { AiShare.send(context, entry.prompt, vm.target) }) { Text("もう一度送る") }
         }
 
         if (entry.answer.isNotBlank()) {
@@ -85,7 +85,7 @@ fun AnswerScreen(vm: AppViewModel) {
                 SelectionContainer { Text(shown, modifier = Modifier.padding(12.dp)) }
             }
             TextButton(onClick = {
-                ClaudeShare.copy(context, shown)
+                AiShare.copy(context, shown)
                 Toast.makeText(context, "コピーしました", Toast.LENGTH_SHORT).show()
             }) { Text("表示中の回答をコピー") }
         }

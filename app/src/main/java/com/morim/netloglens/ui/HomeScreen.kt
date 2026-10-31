@@ -13,17 +13,23 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.morim.netloglens.AppViewModel
 import com.morim.netloglens.Screen
+import com.morim.netloglens.core.AiTarget
 import com.morim.netloglens.core.DeviceProfiles
 import com.morim.netloglens.core.Mode
 import com.morim.netloglens.core.Purpose
+import com.morim.netloglens.share.AiShare
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun HomeScreen(vm: AppViewModel) {
+    val context = LocalContext.current
+    val installed = remember { AiTarget.entries.filter { AiShare.isInstalled(context, it) }.toSet() }
     Page(
         title = "NetLog Lens",
         actions = { TextButton(onClick = { vm.screen = Screen.HISTORY }) { Text("履歴 ${vm.history.size}") } },
@@ -57,6 +63,25 @@ fun HomeScreen(vm: AppViewModel) {
         }
         Spacer(Modifier.height(16.dp))
 
+        Text("送り先AI", style = MaterialTheme.typography.titleSmall)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            AiTarget.entries.forEach { t ->
+                FilterChip(
+                    selected = t == vm.target,
+                    onClick = { vm.selectTarget(t) },
+                    label = { Text(if (t in installed) t.label else "${t.label}（未インストール）") },
+                )
+            }
+        }
+        if (vm.target !in installed) {
+            Text(
+                "${vm.target.label}アプリが見つかりません。送るときは共有先の選択画面が出ます（文章はクリップボードにも入ります）。",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+        Spacer(Modifier.height(16.dp))
+
         OutlinedTextField(
             value = vm.memo,
             onValueChange = { vm.memo = it },
@@ -77,7 +102,7 @@ fun HomeScreen(vm: AppViewModel) {
         Spacer(Modifier.height(24.dp))
         Text(
             "撮影した画像はスマホの中で文字にするだけで、保存も送信もしません。" +
-                if (vm.isProtected) "Claudeに送るのは、伏せ字にした後の文字だけです。" else "",
+                if (vm.isProtected) "${vm.target.label}に送るのは、伏せ字にした後の文字だけです。" else "",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
