@@ -58,6 +58,17 @@ class Masker(
                     }
                 }
             }
+            // キーワードが無くても、ハッシュ形式・APIキーなど見た目で確実に分かるものは伏せる
+            for (re in SecretLikeness.DEFINITE_IN_TEXT) {
+                text = re.replace(text) { secretCount++; "<SECRET>" }
+            }
+            val definite = SecretLikeness.words(text).filter { (w, _) -> SecretLikeness.isDefinite(w) }.toList()
+            if (definite.isNotEmpty()) {
+                val sb = StringBuilder(text)
+                definite.asReversed().forEach { (_, r) -> sb.replace(r.first, r.last + 1, "<SECRET>") }
+                secretCount += definite.size
+                text = sb.toString()
+            }
         }
 
         // 値を集めてから、同じ文字列をログ全体で置き換える

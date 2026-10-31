@@ -47,6 +47,7 @@ import com.morim.netloglens.AppViewModel
 import com.morim.netloglens.Screen
 import com.morim.netloglens.core.MaskCategory
 import com.morim.netloglens.core.MaskResult
+import com.morim.netloglens.core.SecretLikeness
 import com.morim.netloglens.core.TapTarget
 import com.morim.netloglens.core.Mode
 import com.morim.netloglens.share.AiShare
@@ -108,6 +109,14 @@ fun ReviewScreen(vm: AppViewModel) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.primary,
             )
+            val suspects = remember(result.text) { SecretLikeness.findSuspects(result.text).size }
+            if (suspects > 0) {
+                Text(
+                    "パスワードらしい語が${suspects}件残っています。「タップで伏せる」タブ（赤色の語）で確認してください。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
         } else {
             Card(
                 Modifier.fillMaxWidth(),
@@ -183,10 +192,16 @@ private fun TapToMaskPane(vm: AppViewModel, result: MaskResult) {
         background = MaterialTheme.colorScheme.primaryContainer,
         color = MaterialTheme.colorScheme.onPrimaryContainer,
     )
-    val annotated = remember(result.text, tokenStyle) {
+    val suspectStyle = SpanStyle(
+        background = MaterialTheme.colorScheme.errorContainer,
+        color = MaterialTheme.colorScheme.onErrorContainer,
+    )
+    val suspects = remember(result.text) { SecretLikeness.findSuspects(result.text) }
+    val annotated = remember(result.text, tokenStyle, suspectStyle) {
         buildAnnotatedString {
             append(result.text)
             TapTarget.TOKEN_RE.findAll(result.text).forEach { addStyle(tokenStyle, it.range.first, it.range.last + 1) }
+            suspects.forEach { addStyle(suspectStyle, it.first, it.last + 1) }
         }
     }
 
@@ -194,6 +209,13 @@ private fun TapToMaskPane(vm: AppViewModel, result: MaskResult) {
         "伏せたい語をタップしてください（ログ全体の同じ語が伏せ字になります）。色の付いた記号をタップすると元に戻せます。",
         style = MaterialTheme.typography.bodySmall,
     )
+    if (suspects.isNotEmpty()) {
+        Text(
+            "赤色の語はパスワード・鍵のように見えます（${suspects.size}件）。秘密の値ならタップして伏せてください。",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error,
+        )
+    }
     Card(Modifier.fillMaxWidth()) {
         Text(
             annotated,
