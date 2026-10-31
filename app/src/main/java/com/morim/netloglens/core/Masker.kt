@@ -38,16 +38,17 @@ class Masker(
         if (enabled.isEmpty()) return MaskResult(text, emptyMap(), 0)
 
         if (MaskCategory.SECRET in enabled) {
-            for ((re, replacement) in profile.blockPatterns) {
+            for ((re, replacement) in CommonMaskRules.blockPatterns + profile.blockPatterns) {
                 text = re.replace(text) { secretCount++; replacement }
             }
-            for (re in profile.secretPatterns) {
+            for (re in CommonMaskRules.secretPatterns + profile.secretPatterns) {
                 text = re.replace(text) { m ->
                     val value = m.groupValues[2]
-                    if (value.startsWith("<")) m.value // 伏せ字済み
-                    else {
+                    if (isSecretValue(value)) {
                         secretCount++
                         m.groupValues[1] + "<SECRET>"
+                    } else {
+                        m.value
                     }
                 }
             }
@@ -56,21 +57,22 @@ class Masker(
         // 値を集めてから、同じ文字列をログ全体で置き換える
         val literals = mutableListOf<Pair<String, String>>() // kind, value
         if (MaskCategory.SERIAL in enabled) {
-            profile.serialPatterns.forEach { re ->
+            (CommonMaskRules.serialPatterns + profile.serialPatterns).forEach { re ->
                 re.findAll(text).forEach { literals += "SN" to it.groupValues[1].trimEnd(',', '.', ';') }
             }
         }
         if (MaskCategory.HOST_USER in enabled) {
-            profile.hostnamePatterns.forEach { re ->
+            (CommonMaskRules.hostnamePatterns + profile.hostnamePatterns).forEach { re ->
                 re.findAll(text).forEach { literals += "HOST" to it.groupValues[1].trimEnd(',', '.', ';') }
             }
-            profile.usernamePatterns.forEach { re ->
+            (CommonMaskRules.usernamePatterns + profile.usernamePatterns).forEach { re ->
                 re.findAll(text).forEach { literals += "USER" to it.groupValues[1].trimEnd(',', '.', ';') }
             }
         }
         val seen = HashSet<String>()
         val unique = literals
-            .filter { (_, v) -> v.length >= 2 && !v.startsWith("<") && !isIpv4(v) && seen.add(v) }
+            .map { (k, v) -> k to v.trim('"', '\'') }
+            .filter { (_, v) -> v.length >= 2 && !v.startsWith("<") && !TOKEN_NAME_RE.matches(v) && !isIpv4(v) && seen.add(v) }
             // 長い値から置き換える（"SW01" より先に "SW01-CORE"）
             .sortedByDescending { it.second.length }
         for ((kind, value) in unique) {
@@ -94,6 +96,9 @@ class Masker(
     }
 
     companion object {
+        /** 伏せ字の記号の中身（<CERT_DATA> の CERT_DATA など）をホスト名と間違えないために使う */
+        private val TOKEN_NAME_RE = Regex("""SECRET|CERT_DATA|(?:IP|IPV6|MAC|HOST|USER|SN)_\d+""")
+
         private const val OCTET = """(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)"""
         val IPV4_RE = Regex("""(?<![\w.])$OCTET(?:\.$OCTET){3}(?![\w.]*\d)""")
 
@@ -104,6 +109,14 @@ class Masker(
         )
 
         val IPV6_CANDIDATE_RE = Regex("""(?<![\w:.])[0-9A-Fa-f:]*:[0-9A-Fa-f:]*(?![\w:])""")
+
+        /** 「password changed」の changed や、key chain の番号などは伏せない */
+        private fun isSecretValue(raw: String): Boolean {
+            val v = raw.trim('"', '\'')
+            if (v.isEmpty() || v.startsWith("<")) return false // 空、または伏せ字済み
+            if (v.length <= 2 && v.all { it.isDigit() }) return false
+            return v.lowercase() !in CommonMaskRules.STOP_WORDS
+        }
 
         fun isIpv4(s: String) = Regex("^$OCTET(?:\\.$OCTET){3}$").matches(s)
 
