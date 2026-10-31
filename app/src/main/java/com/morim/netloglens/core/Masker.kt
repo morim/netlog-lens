@@ -16,9 +16,15 @@ data class MaskResult(
             (if (secretCount > 0) mapOf("SECRET" to secretCount) else emptyMap())
 }
 
+/**
+ * @param userWords 確認画面でタップした語や「いつも伏せる語」。種類に関係なく <WORD_n> にする
+ * @param keepValues 確認画面で「元に戻す」を選んだ値。自動で見つかっても伏せない（パスワード類は対象外）
+ */
 class Masker(
     private val profile: DeviceProfile,
     private val enabled: Set<MaskCategory>,
+    private val userWords: Set<String> = emptySet(),
+    private val keepValues: Set<String> = emptySet(),
 ) {
     private val valueToToken = LinkedHashMap<String, String>()
     private val counters = HashMap<String, Int>()
@@ -35,7 +41,7 @@ class Masker(
 
     fun mask(input: String): MaskResult {
         var text = input.replace("\r\n", "\n")
-        if (enabled.isEmpty()) return MaskResult(text, emptyMap(), 0)
+        if (enabled.isEmpty() && userWords.isEmpty()) return MaskResult(text, emptyMap(), 0)
 
         if (MaskCategory.SECRET in enabled) {
             for ((re, replacement) in CommonMaskRules.blockPatterns + profile.blockPatterns) {
@@ -70,9 +76,11 @@ class Masker(
             }
         }
         val seen = HashSet<String>()
-        val unique = literals
-            .map { (k, v) -> k to v.trim('"', '\'') }
-            .filter { (_, v) -> v.length >= 2 && !v.startsWith("<") && !TOKEN_NAME_RE.matches(v) && !isIpv4(v) && seen.add(v) }
+        val unique = (userWords.map { "WORD" to it.trim() } + literals.map { (k, v) -> k to v.trim('"', '\'') })
+            .filter { (k, v) ->
+                v.length >= 2 && !v.startsWith("<") && !TOKEN_NAME_RE.matches(v) && v !in keepValues &&
+                    (k == "WORD" || !isIpv4(v)) && seen.add(v)
+            }
             // 長い値から置き換える（"SW01" より先に "SW01-CORE"）
             .sortedByDescending { it.second.length }
         for ((kind, value) in unique) {
@@ -82,12 +90,13 @@ class Masker(
         }
 
         if (MaskCategory.ADDRESS in enabled) {
-            text = MAC_RE.replace(text) { tokenFor("MAC", it.value.lowercase()) }
+            fun kept(v: String) = v in keepValues || v.lowercase() in keepValues
+            text = MAC_RE.replace(text) { if (kept(it.value)) it.value else tokenFor("MAC", it.value.lowercase()) }
             text = IPV6_CANDIDATE_RE.replace(text) { m ->
-                if (isMaskableIpv6(m.value)) tokenFor("IPV6", m.value.lowercase()) else m.value
+                if (isMaskableIpv6(m.value) && !kept(m.value)) tokenFor("IPV6", m.value.lowercase()) else m.value
             }
             text = IPV4_RE.replace(text) { m ->
-                if (isNetmaskOrWildcard(m.value)) m.value else tokenFor("IP", m.value)
+                if (isNetmaskOrWildcard(m.value) || kept(m.value)) m.value else tokenFor("IP", m.value)
             }
         }
 
@@ -97,7 +106,7 @@ class Masker(
 
     companion object {
         /** 伏せ字の記号の中身（<CERT_DATA> の CERT_DATA など）をホスト名と間違えないために使う */
-        private val TOKEN_NAME_RE = Regex("""SECRET|CERT_DATA|(?:IP|IPV6|MAC|HOST|USER|SN)_\d+""")
+        private val TOKEN_NAME_RE = Regex("""SECRET|CERT_DATA|(?:IP|IPV6|MAC|HOST|USER|SN|WORD)_\d+""")
 
         private const val OCTET = """(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)"""
         val IPV4_RE = Regex("""(?<![\w.])$OCTET(?:\.$OCTET){3}(?![\w.]*\d)""")
