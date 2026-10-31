@@ -1,0 +1,57 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.11.1"
+
+      - name: Unit tests
+        run: gradle --no-daemon testDebugUnitTest
+
+      - name: Build APK
+        run: gradle --no-daemon assembleDebug
+
+      - name: Upload test report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report
+          path: app/build/reports/tests/
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: netlog-lens-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+
+      # main に入るたびに「latest」リリースを作り直す。スマホのブラウザからAPKを直接落とせる。
+      - name: Publish latest release
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk netlog-lens.apk
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest netlog-lens.apk \
+            --title "最新ビルド #${{ github.run_number }}" \
+            --notes "commit ${{ github.sha }}" \
+            --latest
