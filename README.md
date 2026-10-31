@@ -86,15 +86,15 @@ GitHub の [Releases → latest](../../releases/tag/latest) から `netlog-lens.
 | `ui/` | Jetpack Compose の画面（ホーム・撮影・確認・解析結果・履歴） |
 
 ## 開発環境
-- Kotlin 2.1.0 + Jetpack Compose、Android Gradle Plugin 8.7.3
+- Kotlin 2.1.0 + Jetpack Compose、Android Gradle Plugin 8.13.2
 - minSdk 26（Android 8.0）／ targetSdk 35
 - CameraX 1.4.1、ML Kit Text Recognition 16.0.1
-- Gradle 8.11.1（Gradle Wrapper は同梱していない。手元でビルドするときは Android Studio で開くか、Gradle 8.11.1 を使う）
+- Gradle 9.5.0（Gradle Wrapper を同梱。手元では `./gradlew` で同じバージョンが使われる）
 
 ## ビルドとリリース
 `main` に push すると GitHub Actions（`.github/workflows/build.yml`）が次を行う：
-1. 単体テスト（`gradle testDebugUnitTest`）
-2. APKを作る（`gradle assembleDebug`）
+1. 単体テスト（`./gradlew testDebugUnitTest`）
+2. APKを作る（`./gradlew assembleDebug`）
 3. Release「latest」を作り直し、`netlog-lens.apk` を置く
 
 ## 今後の予定・未確認事項
