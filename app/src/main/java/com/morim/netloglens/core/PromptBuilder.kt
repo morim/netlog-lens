@@ -20,7 +20,9 @@ object PromptBuilder {
         appendLine("あなたは${profile.expertise}に詳しいネットワークエンジニアです。")
         appendLine("以下はスマホで機器の画面を撮影し、OCRで文字起こししたログです。")
         appendLine("OCRの誤認識（0とO、1とlとI、:と;、行の欠け・重複など）が含まれる可能性があるので、文脈から補って読んでください。")
-        appendLine("<IP_1> や <HOST_1> のような記号は、機密保護のための伏せ字です。同じ記号は同じ値を表します。中身は推測せず、回答でも記号をそのまま使ってください。<SECRET> はパスワード等で、値の良し悪しは判断不要です。")
+        if (profile.masking) {
+            appendLine("<IP_1> や <HOST_1> のような記号は、機密保護のための伏せ字です。同じ記号は同じ値を表します。中身は推測せず、回答でも記号をそのまま使ってください。<SECRET> はパスワード等で、値の良し悪しは判断不要です。")
+        }
         profile.promptHints.forEach { appendLine("- $it") }
         appendLine()
         appendLine("## 依頼内容")

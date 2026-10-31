@@ -33,6 +33,13 @@ fun HomeScreen(vm: AppViewModel) {
                 FilterChip(selected = p.id == vm.profileId, onClick = { vm.selectProfile(p.id) }, label = { Text(p.displayName) })
             }
         }
+        if (!vm.profile.masking) {
+            Text(
+                "汎用モードは伏せ字をしません。社外に出せないログには使わないでください。",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
         Spacer(Modifier.height(16.dp))
 
         Text("やりたいこと", style = MaterialTheme.typography.titleSmall)
@@ -63,7 +70,7 @@ fun HomeScreen(vm: AppViewModel) {
         Spacer(Modifier.height(24.dp))
         Text(
             "撮影した画像はスマホの中で文字にするだけで、保存も送信もしません。" +
-                "Claudeに送るのは、伏せ字にした後の文字だけです。",
+                if (vm.profile.masking) "Claudeに送るのは、伏せ字にした後の文字だけです。" else "",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

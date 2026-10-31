@@ -32,11 +32,30 @@ interface DeviceProfile {
 
     /** 行全体を置き換える正規表現（証明書の16進ダンプなど）と置換文字列 */
     val blockPatterns: List<Pair<Regex, String>> get() = emptyList()
+
+    /** false にすると伏せ字を一切行わない（汎用モード） */
+    val masking: Boolean get() = true
+}
+
+/** 汎用モード：機種を限定せず、伏せ字もしない。OCR結果をそのまま送る。 */
+object GenericProfile : DeviceProfile {
+    override val id = "generic"
+    override val displayName = "汎用（伏せ字なし）"
+    override val expertise = "ネットワーク機器・サーバ・PCのログや画面表示"
+    override val promptHints = listOf(
+        "機種・OS・ソフトウェアはログの内容から推定し、回答の最初に推定結果を書いてください。",
+    )
+    override val secretPatterns = emptyList<Regex>()
+    override val hostnamePatterns = emptyList<Regex>()
+    override val usernamePatterns = emptyList<Regex>()
+    override val serialPatterns = emptyList<Regex>()
+    override val masking = false
 }
 
 object DeviceProfiles {
     val all: List<DeviceProfile> = listOf(
         CiscoIosProfile,
+        GenericProfile,
         // 例：YamahaRtxProfile, FortigateProfile をここに追加
     )
 

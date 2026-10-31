@@ -121,6 +121,18 @@ class MaskerTest {
     }
 
     @Test
+    fun genericModeMasksNothing() {
+        val log = "hostname R1\nenable secret 5 abc\nip address 10.1.1.1 255.255.255.0"
+        val r = Masker(GenericProfile, MaskCategory.entries.toSet()).mask(log)
+        assertEquals(log, r.text)
+        assertTrue(r.mapping.isEmpty())
+        val prompt = PromptBuilder.build(GenericProfile, Purpose.TROUBLE, "", r.text)
+        assertFalse(prompt.contains("伏せ字"))
+        assertTrue(prompt.contains("10.1.1.1"))
+        assertTrue(PromptBuilder.build(CiscoIosProfile, Purpose.TROUBLE, "", "x").contains("伏せ字"))
+    }
+
+    @Test
     fun certificateHexIsMasked() {
         val r = mask(
             """

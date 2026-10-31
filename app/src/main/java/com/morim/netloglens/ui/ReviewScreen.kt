@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -74,20 +75,35 @@ fun ReviewScreen(vm: AppViewModel) {
             }
         },
     ) {
-        Text("伏せ字にする項目", style = MaterialTheme.typography.titleSmall)
-        MaskCategory.entries.forEach { cat ->
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(cat.label, modifier = Modifier.weight(1f))
-                Switch(checked = cat in vm.enabled, onCheckedChange = { vm.toggle(cat, it) })
+        if (vm.profile.masking) {
+            Text("伏せ字にする項目", style = MaterialTheme.typography.titleSmall)
+            MaskCategory.entries.forEach { cat ->
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text(cat.label, modifier = Modifier.weight(1f))
+                    Switch(checked = cat in vm.enabled, onCheckedChange = { vm.toggle(cat, it) })
+                }
+            }
+            val counts = result.counts
+            Text(
+                if (counts.isEmpty()) "伏せ字にした箇所はありません"
+                else "伏せ字：" + counts.entries.joinToString("、") { "${LABELS[it.key] ?: it.key} ${it.value}" },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        } else {
+            Card(
+                Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+            ) {
+                Text(
+                    "汎用モード：伏せ字をしません。読み取った文字がそのままClaudeに送られます。" +
+                        "IPアドレス・パスワードなどが写っていないか、送る前に確認してください。",
+                    modifier = Modifier.padding(12.dp),
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                    style = MaterialTheme.typography.bodySmall,
+                )
             }
         }
-        val counts = result.counts
-        Text(
-            if (counts.isEmpty()) "伏せ字にした箇所はありません"
-            else "伏せ字：" + counts.entries.joinToString("、") { "${LABELS[it.key] ?: it.key} ${it.value}" },
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.primary,
-        )
         Spacer(Modifier.height(12.dp))
 
         TabRow(selectedTabIndex = tab) {
@@ -97,7 +113,8 @@ fun ReviewScreen(vm: AppViewModel) {
         Spacer(Modifier.height(8.dp))
         if (tab == 0) {
             Text(
-                "OCRの読み間違いがあればここで直してください。伏せ字はこの文章から自動で作られます。",
+                if (vm.profile.masking) "OCRの読み間違いがあればここで直してください。伏せ字はこの文章から自動で作られます。"
+                else "OCRの読み間違いがあればここで直してください。",
                 style = MaterialTheme.typography.bodySmall,
             )
             OutlinedTextField(
@@ -112,7 +129,8 @@ fun ReviewScreen(vm: AppViewModel) {
             }
         } else {
             Text(
-                "これがそのままClaudeに渡ります。伏せ字が漏れていないか確認してください。",
+                if (vm.profile.masking) "これがそのままClaudeに渡ります。伏せ字が漏れていないか確認してください。"
+                else "これがそのままClaudeに渡ります。",
                 style = MaterialTheme.typography.bodySmall,
             )
             Card(Modifier.fillMaxWidth()) {
