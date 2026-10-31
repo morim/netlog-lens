@@ -12,6 +12,7 @@ import com.morim.netloglens.core.DeviceProfiles
 import com.morim.netloglens.core.MaskCategory
 import com.morim.netloglens.core.MaskResult
 import com.morim.netloglens.core.Masker
+import com.morim.netloglens.core.Mode
 import com.morim.netloglens.core.PromptBuilder
 import com.morim.netloglens.core.Purpose
 import com.morim.netloglens.data.HistoryEntry
@@ -28,6 +29,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     var profileId by mutableStateOf(prefs.getString("profile", null) ?: DeviceProfiles.all.first().id)
         private set
     val profile: DeviceProfile get() = DeviceProfiles.byId(profileId)
+
+    /** 既定は汎用モード（伏せ字なし） */
+    var mode by mutableStateOf(
+        runCatching { Mode.valueOf(prefs.getString("mode", null) ?: "") }.getOrDefault(Mode.GENERAL),
+    )
+        private set
+    val isProtected: Boolean get() = mode == Mode.PROTECTED
 
     var purpose by mutableStateOf(Purpose.TROUBLE)
     var memo by mutableStateOf("")
@@ -52,6 +60,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         prefs.edit().putString("profile", id).apply()
     }
 
+    fun selectMode(m: Mode) {
+        mode = m
+        prefs.edit().putString("mode", m.name).apply()
+    }
+
     fun toggle(cat: MaskCategory, on: Boolean) {
         enabled = if (on) enabled + cat else enabled - cat
         prefs.edit().putBoolean("mask_${cat.name}", on).apply()
@@ -62,9 +75,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         shotCount++
     }
 
-    fun mask(): MaskResult = Masker(profile, enabled).mask(ocrText)
+    fun mask(): MaskResult = Masker(profile, if (isProtected) enabled else emptySet()).mask(ocrText)
 
-    fun buildPrompt(result: MaskResult) = PromptBuilder.build(profile, purpose, memo, result.text)
+    fun buildPrompt(result: MaskResult) = PromptBuilder.build(profile, purpose, memo, result.text, masked = isProtected)
 
     /** Claudeに送る直前に呼ぶ。履歴に保存し、回答の貼り付け先として覚えておく。 */
     fun startAnalysis(prompt: String, result: MaskResult): HistoryEntry {
@@ -72,6 +85,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             id = System.currentTimeMillis(),
             profileId = profileId,
             purpose = purpose.label,
+            mode = mode.label,
             memo = memo,
             prompt = prompt,
             mapping = result.mapping,

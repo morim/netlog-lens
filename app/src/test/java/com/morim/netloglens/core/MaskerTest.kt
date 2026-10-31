@@ -121,15 +121,38 @@ class MaskerTest {
     }
 
     @Test
-    fun genericModeMasksNothing() {
+    fun generalModeMasksNothing() {
+        // 汎用モード＝伏せ字カテゴリが空
         val log = "hostname R1\nenable secret 5 abc\nip address 10.1.1.1 255.255.255.0"
-        val r = Masker(GenericProfile, MaskCategory.entries.toSet()).mask(log)
+        val r = Masker(CiscoIosProfile, emptySet()).mask(log)
         assertEquals(log, r.text)
         assertTrue(r.mapping.isEmpty())
-        val prompt = PromptBuilder.build(GenericProfile, Purpose.TROUBLE, "", r.text)
+        val prompt = PromptBuilder.build(GenericProfile, Purpose.TROUBLE, "", r.text, masked = false)
         assertFalse(prompt.contains("伏せ字"))
         assertTrue(prompt.contains("10.1.1.1"))
-        assertTrue(PromptBuilder.build(CiscoIosProfile, Purpose.TROUBLE, "", "x").contains("伏せ字"))
+        assertTrue(PromptBuilder.build(CiscoIosProfile, Purpose.TROUBLE, "", "x", masked = true).contains("伏せ字"))
+    }
+
+    @Test
+    fun genericProfileProtectedMode() {
+        val log = """
+            admin@web01:~${'$'} cat /etc/app.conf
+            db_password = S3cret!
+            Password:
+            next line stays
+            set hostname FW-01
+            FW-01 # get system status
+            Serial-Number: FGT60F1234567890
+            server 172.16.5.10
+        """.trimIndent()
+        val t = Masker(GenericProfile, MaskCategory.entries.toSet()).mask(log).text
+        assertFalse(t, t.contains("S3cret"))
+        assertFalse(t, t.contains("web01"))
+        assertFalse(t, t.contains("admin@"))
+        assertFalse(t, t.contains("FW-01"))
+        assertFalse(t, t.contains("FGT60F1234567890"))
+        assertFalse(t, t.contains("172.16.5.10"))
+        assertTrue(t, t.contains("next line stays")) // 「Password:」の次の行は巻き込まない
     }
 
     @Test

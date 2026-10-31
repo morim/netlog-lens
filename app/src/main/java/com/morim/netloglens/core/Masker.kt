@@ -35,7 +35,7 @@ class Masker(
 
     fun mask(input: String): MaskResult {
         var text = input.replace("\r\n", "\n")
-        if (!profile.masking) return MaskResult(text, emptyMap(), 0)
+        if (enabled.isEmpty()) return MaskResult(text, emptyMap(), 0)
 
         if (MaskCategory.SECRET in enabled) {
             for ((re, replacement) in profile.blockPatterns) {

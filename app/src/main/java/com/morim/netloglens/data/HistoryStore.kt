@@ -10,6 +10,7 @@ data class HistoryEntry(
     val id: Long,
     val profileId: String,
     val purpose: String,
+    val mode: String,
     val memo: String,
     val prompt: String,
     val mapping: Map<String, String>,
@@ -19,6 +20,7 @@ data class HistoryEntry(
         put("id", id)
         put("profileId", profileId)
         put("purpose", purpose)
+        put("mode", mode)
         put("memo", memo)
         put("prompt", prompt)
         put("mapping", JSONObject(mapping))
@@ -32,6 +34,7 @@ data class HistoryEntry(
                 id = o.getLong("id"),
                 profileId = o.optString("profileId"),
                 purpose = o.optString("purpose"),
+                mode = o.optString("mode"),
                 memo = o.optString("memo"),
                 prompt = o.optString("prompt"),
                 mapping = m.keys().asSequence().associateWith { m.getString(it) },

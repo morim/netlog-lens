@@ -32,30 +32,42 @@ interface DeviceProfile {
 
     /** 行全体を置き換える正規表現（証明書の16進ダンプなど）と置換文字列 */
     val blockPatterns: List<Pair<Regex, String>> get() = emptyList()
-
-    /** false にすると伏せ字を一切行わない（汎用モード） */
-    val masking: Boolean get() = true
 }
 
-/** 汎用モード：機種を限定せず、伏せ字もしない。OCR結果をそのまま送る。 */
+/** 機種を限定しないプロファイル。保護モードでは、どの機種にもありがちな書式だけを伏せ字にする。 */
 object GenericProfile : DeviceProfile {
     override val id = "generic"
-    override val displayName = "汎用（伏せ字なし）"
+    override val displayName = "指定なし（自動判定）"
     override val expertise = "ネットワーク機器・サーバ・PCのログや画面表示"
     override val promptHints = listOf(
         "機種・OS・ソフトウェアはログの内容から推定し、回答の最初に推定結果を書いてください。",
     )
-    override val secretPatterns = emptyList<Regex>()
-    override val hostnamePatterns = emptyList<Regex>()
-    override val usernamePatterns = emptyList<Regex>()
-    override val serialPatterns = emptyList<Regex>()
-    override val masking = false
+
+    // 改行をまたがないよう、空白は [ \t] に限定する
+    override val secretPatterns = listOf(
+        Regex("""(?im)((?<![A-Za-z])(?:password|passwd|secret|community|pre-shared-key|psk|api[_-]?key|token)(?:[ \t]*[:=][ \t]*|[ \t]+(?:\d{1,2}[ \t]+)?))([^\s<]\S*)"""),
+        Regex("""(?im)(\bkey-string(?:[ \t]+\d{1,2})?[ \t]+)(\S+)"""),
+    )
+    override val hostnamePatterns = listOf(
+        Regex("""(?im)^[ \t]*(?:set[ \t]+)?hostname[ \t]+"?([\w.-]+)"""),
+        Regex("""(?m)^([A-Za-z][\w.-]{0,62})(?:\([\w-]+\))?[#>]"""),
+        Regex("""(?m)^[\w.-]+@([\w.-]+)[:~ ]"""), // user@host:~$
+    )
+    override val usernamePatterns = listOf(
+        Regex("""(?im)^[ \t]*username[ \t]+(\S+)"""),
+        Regex("""(?m)^([\w.-]+)@[\w.-]+[:~ ]"""),
+        Regex("""(?im)^[ \t]*(?:User(?:name)?|Login)[ \t]*:[ \t]*(\S+)"""),
+    )
+    override val serialPatterns = listOf(
+        Regex("""(?i)\bSerial(?:[ \t_-]*(?:Number|No\.?))?[ \t]*[:=][ \t]*(\S+)"""),
+        Regex("""(?i)\bSN:[ \t]*([A-Za-z0-9]{6,})"""),
+    )
 }
 
 object DeviceProfiles {
     val all: List<DeviceProfile> = listOf(
-        CiscoIosProfile,
         GenericProfile,
+        CiscoIosProfile,
         // 例：YamahaRtxProfile, FortigateProfile をここに追加
     )
 

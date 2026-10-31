@@ -52,7 +52,7 @@ fun AnswerScreen(vm: AppViewModel) {
         actions = { TextButton(onClick = { vm.newSession() }) { Text("新しく撮る") } },
     ) {
         Text(
-            SimpleDateFormat("yyyy/MM/dd HH:mm", Locale.JAPAN).format(Date(entry.id)) + "　" + entry.purpose,
+            SimpleDateFormat("yyyy/MM/dd HH:mm", Locale.JAPAN).format(Date(entry.id)) + "　" + entry.purpose + (if (entry.mode.isNotEmpty()) "（${entry.mode}）" else ""),
             style = MaterialTheme.typography.bodySmall,
         )
         Spacer(Modifier.height(8.dp))

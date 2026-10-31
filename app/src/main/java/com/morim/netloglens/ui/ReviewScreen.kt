@@ -3,6 +3,7 @@ package com.morim.netloglens.ui
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -20,6 +21,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -34,6 +36,7 @@ import androidx.compose.ui.unit.sp
 import com.morim.netloglens.AppViewModel
 import com.morim.netloglens.Screen
 import com.morim.netloglens.core.MaskCategory
+import com.morim.netloglens.core.Mode
 import com.morim.netloglens.share.ClaudeShare
 
 private val LABELS = mapOf(
@@ -75,8 +78,11 @@ fun ReviewScreen(vm: AppViewModel) {
             }
         },
     ) {
-        if (vm.profile.masking) {
-            Text("伏せ字にする項目", style = MaterialTheme.typography.titleSmall)
+        if (vm.isProtected) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("保護モード：伏せ字にする項目", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                TextButton(onClick = { vm.selectMode(Mode.GENERAL) }) { Text("汎用モードへ") }
+            }
             MaskCategory.entries.forEach { cat ->
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text(cat.label, modifier = Modifier.weight(1f))
@@ -95,13 +101,15 @@ fun ReviewScreen(vm: AppViewModel) {
                 Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
             ) {
-                Text(
-                    "汎用モード：伏せ字をしません。読み取った文字がそのままClaudeに送られます。" +
-                        "IPアドレス・パスワードなどが写っていないか、送る前に確認してください。",
-                    modifier = Modifier.padding(12.dp),
-                    color = MaterialTheme.colorScheme.onErrorContainer,
-                    style = MaterialTheme.typography.bodySmall,
-                )
+                Column(Modifier.padding(12.dp)) {
+                    Text(
+                        "汎用モード：伏せ字をしません。読み取った文字がそのままClaudeに送られます。" +
+                            "IPアドレス・パスワードなどが写っていないか、送る前に確認してください。",
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    OutlinedButton(onClick = { vm.selectMode(Mode.PROTECTED) }) { Text("保護モードに切り替える") }
+                }
             }
         }
         Spacer(Modifier.height(12.dp))
@@ -113,7 +121,7 @@ fun ReviewScreen(vm: AppViewModel) {
         Spacer(Modifier.height(8.dp))
         if (tab == 0) {
             Text(
-                if (vm.profile.masking) "OCRの読み間違いがあればここで直してください。伏せ字はこの文章から自動で作られます。"
+                if (vm.isProtected) "OCRの読み間違いがあればここで直してください。伏せ字はこの文章から自動で作られます。"
                 else "OCRの読み間違いがあればここで直してください。",
                 style = MaterialTheme.typography.bodySmall,
             )
@@ -129,7 +137,7 @@ fun ReviewScreen(vm: AppViewModel) {
             }
         } else {
             Text(
-                if (vm.profile.masking) "これがそのままClaudeに渡ります。伏せ字が漏れていないか確認してください。"
+                if (vm.isProtected) "これがそのままClaudeに渡ります。伏せ字が漏れていないか確認してください。"
                 else "これがそのままClaudeに渡ります。",
                 style = MaterialTheme.typography.bodySmall,
             )

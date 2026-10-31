@@ -16,11 +16,11 @@ enum class Purpose(val label: String, val instruction: String) {
 }
 
 object PromptBuilder {
-    fun build(profile: DeviceProfile, purpose: Purpose, memo: String, maskedLog: String): String = buildString {
+    fun build(profile: DeviceProfile, purpose: Purpose, memo: String, log: String, masked: Boolean): String = buildString {
         appendLine("あなたは${profile.expertise}に詳しいネットワークエンジニアです。")
         appendLine("以下はスマホで機器の画面を撮影し、OCRで文字起こししたログです。")
         appendLine("OCRの誤認識（0とO、1とlとI、:と;、行の欠け・重複など）が含まれる可能性があるので、文脈から補って読んでください。")
-        if (profile.masking) {
+        if (masked) {
             appendLine("<IP_1> や <HOST_1> のような記号は、機密保護のための伏せ字です。同じ記号は同じ値を表します。中身は推測せず、回答でも記号をそのまま使ってください。<SECRET> はパスワード等で、値の良し悪しは判断不要です。")
         }
         profile.promptHints.forEach { appendLine("- $it") }
@@ -35,7 +35,7 @@ object PromptBuilder {
         appendLine()
         appendLine("## ログ")
         appendLine("```")
-        appendLine(maskedLog.trim())
+        appendLine(log.trim())
         appendLine("```")
         appendLine()
         appendLine("## 回答形式")
