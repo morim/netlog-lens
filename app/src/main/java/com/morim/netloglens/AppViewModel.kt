@@ -7,6 +7,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
+import com.morim.netloglens.core.AiTarget
 import com.morim.netloglens.core.DeviceProfile
 import com.morim.netloglens.core.DeviceProfiles
 import com.morim.netloglens.core.MaskCategory
@@ -37,6 +38,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         private set
     val isProtected: Boolean get() = mode == Mode.PROTECTED
 
+    /** 送り先AI。既定はClaude。最後に選んだものを次回も使う */
+    var target by mutableStateOf(AiTarget.fromName(prefs.getString("target", null)))
+        private set
+
     var purpose by mutableStateOf(Purpose.TROUBLE)
     var memo by mutableStateOf("")
 
@@ -65,6 +70,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         prefs.edit().putString("mode", m.name).apply()
     }
 
+    fun selectTarget(t: AiTarget) {
+        target = t
+        prefs.edit().putString("target", t.name).apply()
+    }
+
     fun toggle(cat: MaskCategory, on: Boolean) {
         enabled = if (on) enabled + cat else enabled - cat
         prefs.edit().putBoolean("mask_${cat.name}", on).apply()
@@ -79,7 +89,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun buildPrompt(result: MaskResult) = PromptBuilder.build(profile, purpose, memo, result.text, masked = isProtected)
 
-    /** Claudeに送る直前に呼ぶ。履歴に保存し、回答の貼り付け先として覚えておく。 */
+    /** AIに送る直前に呼ぶ。履歴に保存し、回答の貼り付け先として覚えておく。 */
     fun startAnalysis(prompt: String, result: MaskResult): HistoryEntry {
         val entry = HistoryEntry(
             id = System.currentTimeMillis(),

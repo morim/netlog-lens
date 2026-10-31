@@ -4,6 +4,14 @@
     <uses-feature android:name="android.hardware.camera.any" android:required="true" />
     <uses-permission android:name="android.permission.CAMERA" />
 
+    <!-- 送り先AIアプリが入っているかを調べるため（Android 11以降はここに書いたアプリしか見えない） -->
+    <queries>
+        <package android:name="com.anthropic.claude" />
+        <package android:name="com.openai.chatgpt" />
+        <package android:name="com.google.android.apps.bard" />
+        <package android:name="com.microsoft.copilot" />
+    </queries>
+
     <application
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"

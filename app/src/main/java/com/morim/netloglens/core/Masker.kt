@@ -2,8 +2,8 @@ package com.morim.netloglens.core
 
 /**
  * 伏せ字の結果。
- * @param text 伏せ字にした後の文字列（Claudeに送るもの）
- * @param mapping 記号 → 元の値。スマホの中にだけ保存し、Claudeの回答を元に戻すのに使う。
+ * @param text 伏せ字にした後の文字列（AIに送るもの）
+ * @param mapping 記号 → 元の値。スマホの中にだけ保存し、AIの回答を元に戻すのに使う。
  *                パスワード類は復元不要なので入れない。
  */
 data class MaskResult(
@@ -133,7 +133,7 @@ class Masker(
             }
         }
 
-        /** Claudeの回答に出てくる記号を元の値に戻す */
+        /** AIの回答に出てくる記号を元の値に戻す */
         fun unmask(text: String, mapping: Map<String, String>): String {
             var out = text
             mapping.entries.sortedByDescending { it.key.length }.forEach { (token, value) ->
